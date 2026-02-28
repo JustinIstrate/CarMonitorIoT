@@ -9,13 +9,13 @@ This project is an End-to-End simulation of an IoT (Internet of Things) system f
 * **Interactive Interface:** A reactive web interface that updates values instantly without requiring page reloads.
 * **Dynamic Charting:** Integrates **Chart.js** to visualize engine RPM fluctuations in real-time.
 
-(images/dashboard-live.png)
+![Live Dashboard](images/dashboard-live.png)
 
 ### 📋 Remote Control & Diagnostics
 * **Two-Way Communication (Kill Switch):** The ability to send a command from the web interface (Frontend) directly to the Python script (Backend) to remotely shut down the engine.
 * **On-Board Diagnostic System (OBD2 Log):** Built-in memory that logs error codes triggered during operation and generates a comprehensive diagnostic report when the engine stops.
 
-(images/diagnostic-report.png)
+![Diagnostic Report](images/diagnostic-report.png)
 
 ## 🛠️ Technologies Used
 * **Backend / Simulated Hardware:** Python 3 (libraries: `random`, `time`, `firebase-admin`)
