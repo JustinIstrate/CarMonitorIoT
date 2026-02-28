@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Live Car Dashboard PRO</title>
+    <title>Live Car Dashboard</title>
     <style>
         body { font-family: 'Segoe UI', Tahoma, sans-serif; background-color: #121212; color: #fff; text-align: center; padding: 20px; }
         h1 { color: #00d2ff; letter-spacing: 2px; }
@@ -22,7 +22,6 @@
         .kill-switch { background-color: #ff4d4d; color: white; border: none; padding: 15px 30px; font-size: 18px; font-weight: bold; border-radius: 50px; cursor: pointer; text-transform: uppercase; box-shadow: 0 0 15px rgba(255, 77, 77, 0.5); transition: 0.2s;}
         .kill-switch:hover { background-color: #ff1a1a; transform: scale(1.05); box-shadow: 0 0 25px rgba(255, 77, 77, 0.8);}
 
-        /* Design pentru Raportul de Diagnoză */
         .diagnostic-panel { display: none; background: #1e1e1e; padding: 30px; border-radius: 10px; border-top: 4px solid #ffaa00; margin: 30px auto; max-width: 900px; text-align: left; animation: fadeIn 1s; box-shadow: 0 10px 30px rgba(0,0,0,0.8);}
         .diagnostic-panel h2 { color: #ffaa00; margin-top: 0; border-bottom: 1px solid #333; padding-bottom: 10px;}
         .log-list { list-style-type: none; padding: 0; font-family: monospace; font-size: 16px;}
@@ -38,28 +37,28 @@
 </head>
 <body>
 
-<h1>🏎️ CLOUD FLEET DASHBOARD - PRO EDITION</h1>
+<h1>CLOUD CAR DASHBOARD</h1>
 
 <div class="dashboard-container">
     <div class="card">
-        <h3>Turație Motor</h3>
+        <h3>ENGINE RPM</h3>
         <div id="rpm" class="value">---</div>
     </div>
     <div class="card">
-        <h3>Viteză Live</h3>
+        <h3>LIVE SPEED</h3>
         <div id="speed" class="value">--- km/h</div>
     </div>
     <div class="card stats-card">
-        <h3>🔥 Viteză Maximă</h3>
+        <h3>MAX SPEED</h3>
         <div id="max-speed" class="value" style="color: #ffaa00;">0 km/h</div>
     </div>
     <div class="card stats-card">
-        <h3>🔥 RPM Maxim</h3>
+        <h3>MAX RPM</h3>
         <div id="max-rpm" class="value" style="color: #ffaa00;">0</div>
     </div>
     <div class="card" id="error-card">
-        <h3>Status Motor</h3>
-        <div id="error" class="value">Conectare...</div>
+        <h3>ENGINE STATUS</h3>
+        <div id="error" class="value">CONNECTING</div>
     </div>
 </div>
 
@@ -69,14 +68,14 @@
     </div>
     <div class="control-panel">
         <h3 style="color: #ff4d4d;">Control 2-Way</h3>
-        <button class="kill-switch" onclick="stopEngine()">🛑 OPREȘTE MOTORUL</button>
-        <p style="color: #aaa; font-size: 12px; margin-top: 15px;">Trimite comandă direct în Python</p>
+        <button class="kill-switch" onclick="stopEngine()">TURN OFF THE ENGINE</button>
+        <p style="color: #aaa; font-size: 12px; margin-top: 15px;">Sends the command in Python</p>
     </div>
 </div>
 
 <div id="diagnostic-report" class="diagnostic-panel">
-    <h2>📋 Raport Diagnoză (OBD2 Scanner Log)</h2>
-    <p style="color: #aaa; font-size: 14px;">Istoricul erorilor detectate în timpul ultimei funcționări:</p>
+    <h2>OBD2 Scanner Log</h2>
+    <p style="color: #aaa; font-size: 14px;">Errors history</p>
     <ul id="error-log" class="log-list">
     </ul>
 </div>
@@ -131,7 +130,7 @@
 
             // Salvăm eroarea cu ora exactă
             const timeNow = new Date().toLocaleTimeString('ro-RO');
-            const logMessage = `[${timeNow}] - Cod Eroare: ${data.error}`;
+            const logMessage = `[${timeNow}] - Error code: ${data.error}`;
 
             // Evităm să adăugăm aceeași eroare de 10 ori pe secundă
             if (errorHistory.length === 0 || !errorHistory[errorHistory.length - 1].includes(data.error)) {
@@ -139,7 +138,7 @@
             }
         } else if (data.error === "ENGINE KILLED") {
             // MOTOR OPRIT -> AFIȘĂM RAPORTUL!
-            errorElement.innerText = "OPRIT";
+            errorElement.innerText = "OFF";
             errorElement.className = "value error-value";
             errorCard.className = "card error-card";
 
@@ -181,7 +180,7 @@
         } else {
             const li = document.createElement('li');
             li.className = 'log-success';
-            li.innerText = "✅ Diagnoză curată! Nu s-a înregistrat nicio eroare în timpul funcționării.";
+            li.innerText = "No errors detected.";
             logList.appendChild(li);
         }
     }
