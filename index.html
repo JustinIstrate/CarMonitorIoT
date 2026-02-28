@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Car Dashboard PRO</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, sans-serif; background-color: #121212; color: #fff; text-align: center; padding: 20px; }
+        h1 { color: #00d2ff; letter-spacing: 2px; }
+        .dashboard-container { display: flex; justify-content: center; gap: 20px; flex-wrap: wrap; margin-bottom: 30px; }
+        .card { background: #1e1e1e; padding: 20px; border-radius: 10px; width: 200px; border-top: 4px solid #00d2ff; }
+        .stats-card { border-top: 4px solid #ffaa00; background: #2a2211; }
+        h3 { margin-top: 0; color: #aaa; font-size: 14px; text-transform: uppercase; }
+        .value { font-size: 2em; font-weight: bold; color: #4CAF50; margin: 10px 0; }
+        .error-card { border-top: 4px solid #ff4d4d; background: #3a1c1c; }
+        .error-value { color: #ff4d4d; }
+
+        .bottom-section { display: flex; justify-content: center; gap: 30px; max-width: 1000px; margin: 0 auto; align-items: center; flex-wrap: wrap;}
+        .chart-container { background: #1e1e1e; padding: 20px; border-radius: 10px; width: 600px; }
+        .control-panel { background: #1e1e1e; padding: 30px; border-radius: 10px; border: 2px dashed #ff4d4d; }
+
+        .kill-switch { background-color: #ff4d4d; color: white; border: none; padding: 15px 30px; font-size: 18px; font-weight: bold; border-radius: 50px; cursor: pointer; text-transform: uppercase; box-shadow: 0 0 15px rgba(255, 77, 77, 0.5); transition: 0.2s;}
+        .kill-switch:hover { background-color: #ff1a1a; transform: scale(1.05); box-shadow: 0 0 25px rgba(255, 77, 77, 0.8);}
+
+        /* Design pentru Raportul de Diagnoză */
+        .diagnostic-panel { display: none; background: #1e1e1e; padding: 30px; border-radius: 10px; border-top: 4px solid #ffaa00; margin: 30px auto; max-width: 900px; text-align: left; animation: fadeIn 1s; box-shadow: 0 10px 30px rgba(0,0,0,0.8);}
+        .diagnostic-panel h2 { color: #ffaa00; margin-top: 0; border-bottom: 1px solid #333; padding-bottom: 10px;}
+        .log-list { list-style-type: none; padding: 0; font-family: monospace; font-size: 16px;}
+        .log-item { background: #2a2211; margin-bottom: 5px; padding: 10px; border-left: 4px solid #ff4d4d; border-radius: 4px;}
+        .log-success { background: #112a15; border-left: 4px solid #4CAF50; color: #4CAF50; padding: 10px; font-weight: bold; border-radius: 4px;}
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+
+<h1>🏎️ CLOUD FLEET DASHBOARD - PRO EDITION</h1>
+
+<div class="dashboard-container">
+    <div class="card">
+        <h3>Turație Motor</h3>
+        <div id="rpm" class="value">---</div>
+    </div>
+    <div class="card">
+        <h3>Viteză Live</h3>
+        <div id="speed" class="value">--- km/h</div>
+    </div>
+    <div class="card stats-card">
+        <h3>🔥 Viteză Maximă</h3>
+        <div id="max-speed" class="value" style="color: #ffaa00;">0 km/h</div>
+    </div>
+    <div class="card stats-card">
+        <h3>🔥 RPM Maxim</h3>
+        <div id="max-rpm" class="value" style="color: #ffaa00;">0</div>
+    </div>
+    <div class="card" id="error-card">
+        <h3>Status Motor</h3>
+        <div id="error" class="value">Conectare...</div>
+    </div>
+</div>
+
+<div class="bottom-section">
+    <div class="chart-container">
+        <canvas id="rpmChart"></canvas>
+    </div>
+    <div class="control-panel">
+        <h3 style="color: #ff4d4d;">Control 2-Way</h3>
+        <button class="kill-switch" onclick="stopEngine()">🛑 OPREȘTE MOTORUL</button>
+        <p style="color: #aaa; font-size: 12px; margin-top: 15px;">Trimite comandă direct în Python</p>
+    </div>
+</div>
+
+<div id="diagnostic-report" class="diagnostic-panel">
+    <h2>📋 Raport Diagnoză (OBD2 Scanner Log)</h2>
+    <p style="color: #aaa; font-size: 14px;">Istoricul erorilor detectate în timpul ultimei funcționări:</p>
+    <ul id="error-log" class="log-list">
+    </ul>
+</div>
+
+<script>
+    // --- 1. CONFIGURAREA FIREBASE ---
+    // ATENȚIE: PUNE LINK-UL TĂU AICI!
+    const firebaseConfig = {
+        databaseURL: "https://carmonitoriot-3f81c-default-rtdb.europe-west1.firebasedatabase.app/"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    let topSpeed = 0;
+    let topRpm = 0;
+
+    // NOU: Memoria testerului (Aici salvăm istoricul)
+    let errorHistory = [];
+
+    // --- 2. CONFIGURARE GRAFIC ---
+    const ctx = document.getElementById('rpmChart').getContext('2d');
+    const rpmChart = new Chart(ctx, {
+        type: 'line',
+        data: { labels: [], datasets: [{ label: 'RPM Live', data: [], borderColor: '#00d2ff', backgroundColor: 'rgba(0, 210, 255, 0.1)', borderWidth: 2, fill: true, tension: 0.3 }] },
+        options: { responsive: true, animation: false, scales: { y: { min: 0, max: 7000, grid: { color: '#333' } }, x: { grid: { display: false } } }, plugins: { legend: { labels: { color: '#fff' } } } }
+    });
+
+    // --- 3. ASCULTĂM DATELE LIVE ---
+    db.ref('my_car').on('value', (snapshot) => {
+        const data = snapshot.val();
+        if (!data) return;
+
+        // Dacă motorul abia a pornit (nu e KILLED), ascundem raportul
+        if (data.error !== "ENGINE KILLED") {
+            document.getElementById('diagnostic-report').style.display = 'none';
+        }
+
+        document.getElementById('rpm').innerText = data.rpm;
+        document.getElementById('speed').innerText = data.speed + " km/h";
+
+        if (data.speed > topSpeed) { topSpeed = data.speed; document.getElementById('max-speed').innerText = topSpeed + " km/h"; }
+        if (data.rpm > topRpm) { topRpm = data.rpm; document.getElementById('max-rpm').innerText = topRpm; }
+
+        const errorElement = document.getElementById('error');
+        const errorCard = document.getElementById('error-card');
+
+        // --- NOU: LOGICA DE ÎNREGISTRARE ERORI ---
+        if (data.error !== "NONE" && data.error !== "ENGINE KILLED") {
+            errorElement.innerText = "⚠️ " + data.error;
+            errorElement.className = "value error-value";
+            errorCard.className = "card error-card";
+
+            // Salvăm eroarea cu ora exactă
+            const timeNow = new Date().toLocaleTimeString('ro-RO');
+            const logMessage = `[${timeNow}] - Cod Eroare: ${data.error}`;
+
+            // Evităm să adăugăm aceeași eroare de 10 ori pe secundă
+            if (errorHistory.length === 0 || !errorHistory[errorHistory.length - 1].includes(data.error)) {
+                errorHistory.push(logMessage);
+            }
+        } else if (data.error === "ENGINE KILLED") {
+            // MOTOR OPRIT -> AFIȘĂM RAPORTUL!
+            errorElement.innerText = "OPRIT";
+            errorElement.className = "value error-value";
+            errorCard.className = "card error-card";
+
+            showDiagnosticReport();
+        } else {
+            errorElement.innerText = "OK";
+            errorElement.className = "value";
+            errorCard.className = "card";
+        }
+
+        // Update grafic
+        if (data.error !== "ENGINE KILLED") {
+            const now = new Date().toLocaleTimeString('ro-RO', { hour12: false });
+            rpmChart.data.labels.push(now);
+            rpmChart.data.datasets[0].data.push(data.rpm);
+            if (rpmChart.data.labels.length > 15) {
+                rpmChart.data.labels.shift();
+                rpmChart.data.datasets[0].data.shift();
+            }
+            rpmChart.update();
+        }
+    });
+
+    // --- NOU: FUNCȚIA DE AFIȘARE A RAPORTULUI ---
+    function showDiagnosticReport() {
+        const reportPanel = document.getElementById('diagnostic-report');
+        const logList = document.getElementById('error-log');
+
+        reportPanel.style.display = 'block';
+        logList.innerHTML = ""; // Curățăm lista veche
+
+        if (errorHistory.length > 0) {
+            errorHistory.forEach(err => {
+                const li = document.createElement('li');
+                li.className = 'log-item';
+                li.innerText = err;
+                logList.appendChild(li);
+            });
+        } else {
+            const li = document.createElement('li');
+            li.className = 'log-success';
+            li.innerText = "✅ Diagnoză curată! Nu s-a înregistrat nicio eroare în timpul funcționării.";
+            logList.appendChild(li);
+        }
+    }
+
+    // --- 4. FUNCȚIA PENTRU BUTON ---
+    function stopEngine() {
+        db.ref('command').set({ stop_engine: true });
+    }
+</script>
+</body>
+</html>
